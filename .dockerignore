@@ -11,6 +11,8 @@ test-results
 .env.*
 !.env.example
 infra/terraform/.terraform
+secrets
+backup
 *.tfstate
 *.tfstate.*
 README.md

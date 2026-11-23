@@ -139,7 +139,7 @@ resource "aws_instance" "vm" {
 }
 
 resource "aws_eip" "vm" {
-  domain = "vpc"
+  domain   = "vpc"
   instance = aws_instance.vm.id
 
   tags = { Name = "${var.project_name}-public-ip" }
