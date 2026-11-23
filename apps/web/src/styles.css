@@ -1,0 +1,111 @@
+:root {
+  font-family: 'Segoe UI', Inter, system-ui, -apple-system, sans-serif;
+  color: #e8ecf4;
+  background: #0b1020;
+  font-synthesis: none;
+  line-height: 1.6;
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; min-width: 320px; }
+
+a { color: inherit; }
+
+.app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem clamp(1rem, 5vw, 4rem);
+  border-bottom: 1px solid #222a44;
+  background: rgba(11, 16, 32, 0.9);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(8px);
+}
+
+.brand { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; font-weight: 700; }
+.brand-mark {
+  display: grid; place-items: center;
+  width: 2.4rem; height: 2.4rem; border-radius: 0.7rem;
+  background: linear-gradient(135deg, #7c5cff, #29d3c2);
+  color: #07101f; font-size: 0.8rem; font-weight: 900;
+}
+
+nav { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.nav-link {
+  text-decoration: none; padding: 0.45rem 0.8rem; border-radius: 999px;
+  color: #aab4cc; font-size: 0.92rem;
+}
+.nav-link:hover, .nav-link.active { color: #fff; background: #1b2340; }
+
+.content { width: min(1100px, 100%); margin: 0 auto; padding: clamp(2rem, 6vw, 4.5rem) 1.25rem; flex: 1; }
+
+.eyebrow { text-transform: uppercase; letter-spacing: 0.16em; font-size: 0.75rem; color: #29d3c2; font-weight: 700; }
+h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.15; margin: 0.4rem 0 1rem; }
+h2 { font-size: 1.15rem; margin: 0 0 0.5rem; }
+.lead { font-size: 1.08rem; color: #b9c3d9; max-width: 62ch; }
+
+.hero { padding: 2rem 0 1rem; }
+.stats { display: flex; gap: 1rem; flex-wrap: wrap; margin: 2.2rem 0; }
+.stat {
+  background: #121a30; border: 1px solid #232d4b; border-radius: 1rem;
+  padding: 1rem 1.4rem; min-width: 170px;
+}
+.stat strong { display: block; font-size: 2rem; color: #9ee9dd; }
+.stat span { color: #98a3bd; font-size: 0.85rem; }
+
+.cta-row { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+.button {
+  display: inline-block; text-decoration: none; cursor: pointer;
+  padding: 0.75rem 1.3rem; border-radius: 0.7rem; border: 1px solid transparent;
+  font: inherit; font-weight: 600;
+}
+.button.primary { background: linear-gradient(135deg, #7c5cff, #29d3c2); color: #07101f; }
+.button.ghost { border-color: #3a476e; color: #dbe3f5; background: transparent; }
+.button:disabled { opacity: 0.6; cursor: wait; }
+
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.1rem; margin-top: 2rem; }
+.card {
+  background: #121a30; border: 1px solid #232d4b; border-radius: 1rem;
+  padding: 1.4rem; display: flex; flex-direction: column; gap: 0.7rem;
+}
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.pill { background: #24305a; color: #9ee9dd; border-radius: 999px; padding: 0.2rem 0.7rem; font-size: 0.78rem; }
+.owner { color: #98a3bd; font-size: 0.78rem; }
+.tag-list { list-style: none; display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0; margin: 0; }
+.tag-list li { background: #1b2340; border-radius: 0.4rem; padding: 0.2rem 0.55rem; font-size: 0.78rem; color: #c9d3ea; }
+.text-link { color: #7ee6d6; text-decoration: none; font-weight: 600; margin-top: auto; }
+
+.detail { max-width: 760px; }
+.detail-meta { display: flex; gap: 2rem; flex-wrap: wrap; margin: 2rem 0; }
+.detail-meta .label { display: block; color: #98a3bd; font-size: 0.8rem; }
+
+.team-card { align-items: flex-start; }
+.avatar {
+  width: 3.2rem; height: 3.2rem; border-radius: 50%; display: grid; place-items: center;
+  background: #24305a; color: #9ee9dd; font-weight: 800;
+}
+.role { color: #7ee6d6; margin-top: -0.4rem; }
+
+.contact { max-width: 620px; }
+.contact-form { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.5rem; }
+.contact-form label { font-size: 0.85rem; color: #c9d3ea; margin-top: 0.5rem; }
+.contact-form input, .contact-form textarea {
+  background: #121a30; border: 1px solid #2c3860; color: #e8ecf4;
+  border-radius: 0.6rem; padding: 0.75rem; font: inherit; resize: vertical;
+}
+.contact-form button { margin-top: 1rem; align-self: flex-start; }
+.error { color: #ff9a9a; }
+.success { color: #7ee6b0; font-weight: 600; }
+.loading { color: #aab4cc; }
+
+.footer {
+  display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  padding: 1.2rem clamp(1rem, 5vw, 4rem); border-top: 1px solid #222a44;
+  color: #7d88a4; font-size: 0.82rem;
+}

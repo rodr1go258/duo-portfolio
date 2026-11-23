@@ -1,0 +1,249 @@
+name: CI/CD - Dúo Portfolio (MVP)
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+  IMAGE_NAME: duo-portfolio
+
+jobs:
+  # -------------------------------------------------------------------------
+  # RAMA DEV — cada push ejecuta TODAS las pruebas automatizadas
+  # -------------------------------------------------------------------------
+  dev_tests:
+    name: DEV | Pruebas automatizadas
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Type-check / build
+        run: npm run build
+
+      - name: Instalar navegador E2E
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: Tests unitarios (>= 6)
+        run: npm run test:unit -w @duo/api
+
+      - name: Tests de integración (>= 6)
+        run: npm run test:integration -w @duo/api
+
+      - name: Tests E2E (>= 6)
+        run: npm run test:e2e -w @duo/web
+        env:
+          CI: 'true'
+
+      - name: Subir reportes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            apps/api/coverage
+            apps/web/playwright-report
+            apps/web/test-results
+          if-no-files-found: ignore
+
+  # -------------------------------------------------------------------------
+  # RAMA MAIN — 10 pasos automatizados
+  # -------------------------------------------------------------------------
+  main_quality_gate:
+    name: MAIN 1/10 | Quality gate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Unitarias + integración en main
+        run: npm run test -w @duo/api
+
+  main_docker:
+    name: MAIN 2-3/10 | Empaquetar y publicar en Docker Hub
+    needs: main_quality_gate
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Calcular tag de la imagen
+        id: meta
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login en Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build y push (latest + sha)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  main_terraform:
+    name: "MAIN 4-6/10 | Terraform: VPC, subnets, IP pública y VM Ubuntu 24.04 + VNC"
+    needs: main_docker
+    runs-on: ubuntu-latest
+    outputs:
+      public_ip: ${{ steps.tf_output.outputs.public_ip }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.9.8'
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Terraform init
+        working-directory: infra/terraform
+        run: terraform init -input=false
+
+      - name: Terraform validate
+        working-directory: infra/terraform
+        run: terraform validate
+
+      - name: Terraform plan
+        working-directory: infra/terraform
+        run: |
+          terraform plan -input=false -out=tfplan \
+            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}" \
+            -var="ssh_cidr=${{ secrets.SSH_CIDR || '0.0.0.0/0' }}"
+
+      - name: Terraform apply
+        working-directory: infra/terraform
+        run: terraform apply -auto-approve -input=false tfplan
+
+      - name: Obtener IP pública
+        id: tf_output
+        working-directory: infra/terraform
+        run: echo "public_ip=$(terraform output -raw public_ip)" >> "$GITHUB_OUTPUT"
+
+      - name: Subir plan como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: infra/terraform/tfplan
+          if-no-files-found: ignore
+
+  main_configure_vm:
+    name: MAIN 7-8/10 | Configurar VM (Docker, Git, firewall, iptables 80/443, VNC)
+    needs: main_terraform
+    runs-on: ubuntu-latest
+    env:
+      VNC_PASSWORD: ${{ secrets.VNC_PASSWORD || 'duoportfolio' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copiar script.sh a la VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ needs.main_terraform.outputs.public_ip }}
+          username: ${{ secrets.SSH_USER || 'ubuntu' }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: scripts/setup_vm.sh
+          target: /tmp
+
+      - name: Ejecutar configuración
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ needs.main_terraform.outputs.public_ip }}
+          username: ${{ secrets.SSH_USER || 'ubuntu' }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: VNC_PASSWORD
+          script: |
+            sudo env VNC_PASSWORD="$VNC_PASSWORD" bash /tmp/setup_vm.sh
+
+  main_deploy:
+    name: MAIN 9/10 | Desplegar stack en la VM
+    needs: [main_terraform, main_configure_vm, main_docker]
+    runs-on: ubuntu-latest
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD || 'portfolio' }}
+      IMAGE_TAG: ${{ needs.main_docker.outputs.image_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copiar Docker Compose y configuración
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ needs.main_terraform.outputs.public_ip }}
+          username: ${{ secrets.SSH_USER || 'ubuntu' }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: docker-compose.yml,docker,scripts
+          target: /opt/portfolio
+
+      - name: Desplegar contenedores
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ needs.main_terraform.outputs.public_ip }}
+          username: ${{ secrets.SSH_USER || 'ubuntu' }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: DOCKERHUB_USERNAME,DOCKERHUB_TOKEN,DB_PASSWORD,IMAGE_TAG
+          script: |
+            cd /opt/portfolio
+            chmod +x scripts/*.sh
+            sudo env DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME" \
+                     DOCKERHUB_TOKEN="$DOCKERHUB_TOKEN" \
+                     DB_PASSWORD="$DB_PASSWORD" \
+                     IMAGE_TAG="$IMAGE_TAG" \
+                     bash scripts/deploy_vm.sh
+
+  main_smoke_test:
+    name: MAIN 10/10 | Verificación HTTP/HTTPS
+    needs: [main_terraform, main_deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comprobar puertos 80 y 443
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ needs.main_terraform.outputs.public_ip }}
+          username: ${{ secrets.SSH_USER || 'ubuntu' }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: sudo bash /opt/portfolio/scripts/smoke_test.sh
