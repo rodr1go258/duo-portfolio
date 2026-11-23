@@ -77,6 +77,9 @@ if (-not $SshPrivateKeyPath -and (Test-Path -LiteralPath (Join-Path $root 'secre
 if ([string]::IsNullOrWhiteSpace($Repo)) {
     throw 'Falta REPO: pásalo con -Repo o defínelo en secrets/credenciales.txt'
 }
+if ($cfg.ContainsKey('GH_TOKEN') -and -not $env:GH_TOKEN) {
+    $env:GH_TOKEN = $cfg['GH_TOKEN']
+}
 
 function Write-Step([string]$message) {
     Write-Host "`n=== $message ===" -ForegroundColor Cyan
