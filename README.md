@@ -107,6 +107,25 @@ curl -k https://localhost/api/health
 El proxy nginx publica 80 y 443 (certificado autofirmado generado al arrancar).
 La API sirve además el bundle de React, por lo que una sola imagen basta para todo.
 
+## Documentación para sustentación
+
+- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md): diagramas Mermaid, topología AWS, decisiones técnicas y contrato de la API.
+- [`docs/DEFENSA.md`](docs/DEFENSA.md): discurso de 60 segundos, mapa requisito → evidencia, demo en vivo, 12 preguntas con respuesta, hardening y limitaciones.
+
+## Verificación y publicación asistida
+
+```powershell
+# Simula el pipeline completo en local (build + 39 tests + Docker + HTTP/HTTPS)
+powershell -File scripts/verify-all.ps1
+
+# Configura remoto, secretos y pushes (requiere GitHub CLI autenticado)
+gh auth login
+powershell -File scripts/bootstrap-github.ps1 -Repo TU_USUARIO/duo-portfolio `
+  -DockerHubUser TU_USER -DockerHubToken TU_TOKEN `
+  -AwsKey ... -AwsSecret ... -SshPublicKey 'ssh-ed25519 ...' `
+  -SshPrivateKeyPath C:\claves\id_ed25519 -Push
+```
+
 ## Notas de seguridad
 
 - El certificado TLS es autofirmado: sustituirlo por Let's Encrypt en producción.
