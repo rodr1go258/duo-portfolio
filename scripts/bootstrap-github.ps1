@@ -10,7 +10,6 @@
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
     [string]$Repo,
 
     [string]$DockerHubUser,
@@ -34,6 +33,50 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
+
+# Los valores pueden venir de secrets/credenciales.txt (ignorado por Git).
+$configPath = Join-Path $root 'secrets\credenciales.txt'
+$cfg = @{}
+if (Test-Path -LiteralPath $configPath) {
+    foreach ($line in Get-Content -LiteralPath $configPath) {
+        if ($line -match '^\s*([A-Z0-9_]+)\s*=\s*(.*)$') {
+            $cfg[$Matches[1]] = $Matches[2].Trim().Trim('"', "'")
+        }
+    }
+}
+$configMap = @{
+    Repo            = 'REPO'
+    DockerHubUser   = 'DOCKERHUB_USERNAME'
+    DockerHubToken  = 'DOCKERHUB_TOKEN'
+    AwsKey          = 'AWS_ACCESS_KEY_ID'
+    AwsSecret       = 'AWS_SECRET_ACCESS_KEY'
+    AwsRegion       = 'AWS_REGION'
+    SshUser         = 'SSH_USER'
+    SshCidr         = 'SSH_CIDR'
+    DbPassword      = 'DB_PASSWORD'
+    VncPassword     = 'VNC_PASSWORD'
+}
+foreach ($param in $configMap.Keys) {
+    if (-not $PSBoundParameters.ContainsKey($param) -and $cfg.ContainsKey($configMap[$param])) {
+        Set-Variable -Name $param -Value $cfg[$configMap[$param]]
+    }
+}
+foreach ($switchMap in @(@('CreateRepo', 'CREATE_REPO'), @('Push', 'PUSH'), @('SkipSecrets', 'SKIP_SECRETS'))) {
+    if (-not $PSBoundParameters.ContainsKey($switchMap[0]) -and
+        $cfg.ContainsKey($switchMap[1]) -and
+        $cfg[$switchMap[1]] -match '^(1|true|si|yes)$') {
+        Set-Variable -Name $switchMap[0] -Value $true
+    }
+}
+if (-not $SshPublicKey -and (Test-Path -LiteralPath (Join-Path $root 'secrets\id_ed25519.pub'))) {
+    $SshPublicKey = Get-Content -LiteralPath (Join-Path $root 'secrets\id_ed25519.pub') -Raw
+}
+if (-not $SshPrivateKeyPath -and (Test-Path -LiteralPath (Join-Path $root 'secrets\id_ed25519'))) {
+    $SshPrivateKeyPath = Join-Path $root 'secrets\id_ed25519'
+}
+if ([string]::IsNullOrWhiteSpace($Repo)) {
+    throw 'Falta REPO: pásalo con -Repo o defínelo en secrets/credenciales.txt'
+}
 
 function Write-Step([string]$message) {
     Write-Host "`n=== $message ===" -ForegroundColor Cyan
