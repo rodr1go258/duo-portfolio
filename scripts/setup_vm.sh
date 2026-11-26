@@ -24,6 +24,19 @@ wait_for_apt() {
   echo "AVISO: apt sigue ocupado tras 3 minutos; se reintentará de todos modos" >&2
 }
 
+# Todo apt se ejecuta con reintentos: cloud-init/unattended-upgrades puede tomar
+# el lock justo después de la comprobación inicial.
+apt_do() {
+  for intento in 1 2 3 4 5; do
+    wait_for_apt
+    if apt-get "$@"; then return 0; fi
+    echo "Reintentando apt-get $* ($intento/5) tras lock/error..." >&2
+    sleep 20
+  done
+  echo "ERROR: apt-get $* falló después de 5 intentos" >&2
+  return 1
+}
+
 if command -v cloud-init >/dev/null 2>&1; then
   echo "==> [0/8] Esperando a cloud-init"
   cloud-init status --wait >/dev/null 2>&1 || true
@@ -31,13 +44,8 @@ fi
 wait_for_apt
 
 echo "==> [1/8] Actualizando sistema"
-for intento in 1 2 3; do
-  wait_for_apt
-  if apt-get update -y; then break; fi
-  echo "Reintentando apt-get update ($intento/3)..." >&2
-  sleep 10
-done
-apt-get upgrade -y
+apt_do update -y
+apt_do upgrade -y
 
 # 2 GB de swap evitan picos de memoria durante la instalación de paquetes.
 if [ ! -f /swapfile ]; then
@@ -49,7 +57,7 @@ if [ ! -f /swapfile ]; then
 fi
 
 echo "==> [2/8] Instalando paquetes base"
-apt-get install -y --no-install-recommends \
+apt_do install -y --no-install-recommends \
   ca-certificates curl git gnupg ufw iptables openssl net-tools >/dev/null
 
 echo "==> [3/8] Instalando Docker CE + Compose + Buildx"
@@ -60,8 +68,8 @@ chmod a+r /etc/apt/keyrings/docker.gpg
 ARCH="$(dpkg --print-architecture)"
 echo "deb [arch=${ARCH} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu noble stable" \
   > /etc/apt/sources.list.d/docker.list
-apt-get update -y
-apt-get install -y --no-install-recommends \
+apt_do update -y
+apt_do install -y --no-install-recommends \
   docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin >/dev/null
 systemctl enable --now docker
 usermod -aG docker ubuntu || true
@@ -88,7 +96,7 @@ done
 iptables -S INPUT | head -n 20
 
 echo "==> [6/8] Instalando escritorio ligero + VNC (puerto 5901)"
-apt-get install -y --no-install-recommends xfce4 xfce4-goodies \
+apt_do install -y --no-install-recommends xfce4 xfce4-goodies \
   tigervnc-standalone-server tigervnc-common tigervnc-tools >/dev/null
 mkdir -p /home/ubuntu/.vnc
 echo "${VNC_PASSWORD}" | vncpasswd -f > /home/ubuntu/.vnc/passwd
