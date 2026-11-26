@@ -77,6 +77,12 @@ npm run dev -w @duo/web   # http://127.0.0.1:5317
 9. Copia del Compose + `deploy_vm.sh` y despliegue (`docker compose up -d`).
 10. Smoke test HTTP `:80`, HTTPS `:443` y frontend.
 
+Para abrir toda la evidencia de la demo (VS Code, Docker, stack local y navegador) en un solo comando:
+
+```powershell
+powershell -File scripts/abrir-demo.ps1
+```
+
 ## Secretos necesarios en GitHub
 
 | Secreto | Descripción |
