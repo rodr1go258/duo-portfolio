@@ -9,8 +9,34 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 VNC_PASSWORD="${VNC_PASSWORD:-duoportfolio}"
 
+# En una VM recién creada, cloud-init/unattended-upgrades puede estar usando apt.
+# Esperamos a que suelte los locks para no fallar con "Could not get lock".
+wait_for_apt() {
+  for _ in $(seq 1 36); do
+    if ! pgrep -x apt >/dev/null 2>&1 \
+       && ! pgrep -x apt-get >/dev/null 2>&1 \
+       && ! pgrep -x dpkg >/dev/null 2>&1 \
+       && ! pgrep -x unattended-upgr >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 5
+  done
+  echo "AVISO: apt sigue ocupado tras 3 minutos; se reintentará de todos modos" >&2
+}
+
+if command -v cloud-init >/dev/null 2>&1; then
+  echo "==> [0/8] Esperando a cloud-init"
+  cloud-init status --wait >/dev/null 2>&1 || true
+fi
+wait_for_apt
+
 echo "==> [1/8] Actualizando sistema"
-apt-get update -y
+for intento in 1 2 3; do
+  wait_for_apt
+  if apt-get update -y; then break; fi
+  echo "Reintentando apt-get update ($intento/3)..." >&2
+  sleep 10
+done
 apt-get upgrade -y
 
 # 2 GB de swap evitan picos de memoria durante la instalación de paquetes.

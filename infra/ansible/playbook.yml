@@ -1,59 +1,277 @@
 ---
-# Alternativa a scripts/setup_vm.sh (requerimiento "SCRIPT.SH o ANSIBLE").
-# Uso: ansible-playbook -i "IP," -u ubuntu --become playbook.yml
+# Alternativa completa a scripts/setup_vm.sh (requerimiento "SCRIPT.SH o ANSIBLE").
+# Hace exactamente lo mismo: Docker, Git, swap, firewall UFW, iptables 80/443,
+# escritorio ligero + TigerVNC (:5901) y directorio de despliegue.
+#
+# Uso:
+#   ansible-playbook -i "IP," -u ubuntu --become \
+#     -e "vnc_password=TU_PASSWORD" playbook.yml
+#
+# Requiere la colección community.general solo si se quiere usar el módulo ufw;
+# esta versión usa comandos para no depender de colecciones externas.
 - name: Configurar VM Ubuntu 24.04 para el portafolio
   hosts: all
   become: true
+  gather_facts: true
+
   vars:
     vnc_password: duoportfolio
+    vnc_user: ubuntu
+    deploy_dir: /opt/portfolio
+    ssh_port: 22
+    http_port: 80
+    https_port: 443
+    vnc_port: 5901
 
   tasks:
-    - name: Instalar dependencias base
+    # ---------------------------------------------------------------- 1/9 ----
+    - name: Actualizar índice e instalar paquetes base
       ansible.builtin.apt:
-        name: [ca-certificates, curl, git, gnupg, ufw, iptables, openssl]
+        name:
+          - ca-certificates
+          - curl
+          - git
+          - gnupg
+          - ufw
+          - iptables
+          - openssl
+          - net-tools
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Actualizar paquetes instalados
+      ansible.builtin.apt:
+        upgrade: dist
+      when: ansible_facts['distribution'] == 'Ubuntu'
+
+    # ---------------------------------------------------------------- 2/9 ----
+    - name: Crear swap de 2 GB si no existe
+      ansible.builtin.command:
+        cmd: "{{ item.cmd }}"
+        creates: "{{ item.creates | default(omit) }}"
+      loop:
+        - {cmd: "fallocate -l 2G /swapfile", creates: /swapfile}
+        - {cmd: "chmod 600 /swapfile"}
+        - {cmd: "mkswap /swapfile"}
+        - {cmd: "swapon /swapfile"}
+      loop_control:
+        label: "{{ item.cmd }}"
+      register: swap_setup
+      changed_when: true
+
+    - name: Hacer el swap persistente en fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: "/swapfile none swap sw 0 0"
+        state: present
+        create: true
+
+    # ---------------------------------------------------------------- 3/9 ----
+    - name: Crear directorio de claves APT
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Descargar clave GPG de Docker
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: "0644"
+        force: false
+
+    - name: Convertir la clave GPG de Docker
+      ansible.builtin.command:
+        cmd: "gpg --dearmor -o /etc/apt/keyrings/docker.gpg /etc/apt/keyrings/docker.asc"
+        creates: /etc/apt/keyrings/docker.gpg
+
+    - name: Añadir repositorio de Docker (noble, arquitectura detectada)
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/docker.list
+        mode: "0644"
+        content: |
+          deb [arch={{ ansible_facts['architecture'] | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu noble stable
+          # arquitectura original: {{ ansible_facts['architecture'] }}
+
+    # ---------------------------------------------------------------- 4/9 ----
+    - name: Instalar Docker CE, Compose y Buildx
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
         state: present
         update_cache: true
 
-    - name: Añadir repositorio de Docker
-      ansible.builtin.shell: |
-        install -m 0755 -d /etc/apt/keyrings
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu noble stable" > /etc/apt/sources.list.d/docker.list
-      args:
-        creates: /etc/apt/sources.list.d/docker.list
-
-    - name: Instalar Docker
-      ansible.builtin.apt:
-        name: [docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin]
-        state: present
-        update_cache: true
-
-    - name: Habilitar Docker
+    - name: Habilitar y arrancar Docker
       ansible.builtin.service:
         name: docker
         enabled: true
         state: started
 
-    - name: Firewall - permitir 22, 80, 443 y 5901
-      ansible.posix.firewalld:
-        port: "{{ item }}/tcp"
-        permanent: true
-        state: enabled
-      loop: [22, 80, 443, 5901]
-      ignore_errors: true
+    - name: Añadir el usuario ubuntu al grupo docker
+      ansible.builtin.user:
+        name: "{{ vnc_user }}"
+        groups: docker
+        append: true
 
-    - name: UFW - reglas
-      ansible.builtin.command: "ufw allow {{ item }}/tcp"
-      loop: [22, 80, 443, 5901]
-      ignore_errors: true
+    - name: Mostrar versiones de Docker
+      ansible.builtin.command:
+        cmd: "{{ item }}"
+      loop:
+        - "docker --version"
+        - "docker compose version"
+      register: docker_versions
+      changed_when: false
+
+    - name: Versiones instaladas
+      ansible.builtin.debug:
+        msg: "{{ docker_versions.results | map(attribute='stdout') | list }}"
+
+    # ---------------------------------------------------------------- 5/9 ----
+    - name: Reiniciar UFW con políticas por defecto
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - "ufw --force reset"
+        - "ufw default deny incoming"
+        - "ufw default allow outgoing"
+      changed_when: true
+
+    - name: Permitir 22, 80, 443 y 5901 en UFW
+      ansible.builtin.command: "ufw allow {{ item }}/tcp comment 'portfolio'"
+      loop:
+        - "{{ ssh_port }}"
+        - "{{ http_port }}"
+        - "{{ https_port }}"
+        - "{{ vnc_port }}"
+      changed_when: true
 
     - name: Habilitar UFW
-      ansible.builtin.command: ufw --force enable
-      ignore_errors: true
+      ansible.builtin.command: "ufw --force enable"
+      changed_when: true
 
+    - name: Estado del firewall
+      ansible.builtin.command: "ufw status verbose"
+      register: ufw_status
+      changed_when: false
+
+    - name: Mostrar estado del firewall
+      ansible.builtin.debug:
+        var: ufw_status.stdout_lines
+
+    # ---------------------------------------------------------------- 6/9 ----
+    - name: Reglas explícitas de iptables para 80 y 443
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: "{{ item }}"
+        jump: ACCEPT
+        state: present
+      loop:
+        - "{{ http_port }}"
+        - "{{ https_port }}"
+
+    - name: Verificar reglas de iptables
+      ansible.builtin.command: "iptables -S INPUT"
+      register: iptables_rules
+      changed_when: false
+
+    - name: Mostrar reglas de iptables
+      ansible.builtin.debug:
+        var: iptables_rules.stdout_lines
+
+    # ---------------------------------------------------------------- 7/9 ----
+    - name: Instalar escritorio ligero y TigerVNC
+      ansible.builtin.apt:
+        name:
+          - xfce4
+          - xfce4-goodies
+          - tigervnc-standalone-server
+          - tigervnc-common
+        state: present
+        no_install_recommends: true
+
+    - name: Crear directorio VNC del usuario
+      ansible.builtin.file:
+        path: "/home/{{ vnc_user }}/.vnc"
+        state: directory
+        owner: "{{ vnc_user }}"
+        group: "{{ vnc_user }}"
+        mode: "0700"
+
+    - name: Guardar contraseña VNC
+      ansible.builtin.shell: |
+        echo '{{ vnc_password }}' | vncpasswd -f > "/home/{{ vnc_user }}/.vnc/passwd"
+      args:
+        creates: "/home/{{ vnc_user }}/.vnc/passwd"
+      no_log: true
+
+    - name: Ajustar permisos de la contraseña VNC
+      ansible.builtin.file:
+        path: "/home/{{ vnc_user }}/.vnc/passwd"
+        owner: "{{ vnc_user }}"
+        group: "{{ vnc_user }}"
+        mode: "0600"
+
+    - name: Escribir xstartup de XFCE
+      ansible.builtin.copy:
+        dest: "/home/{{ vnc_user }}/.vnc/xstartup"
+        owner: "{{ vnc_user }}"
+        group: "{{ vnc_user }}"
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          unset SESSION_MANAGER
+          unset DBUS_SESSION_BUS_ADDRESS
+          exec startxfce4
+
+    # ---------------------------------------------------------------- 8/9 ----
+    - name: Crear servicio systemd de TigerVNC
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/vncserver@1.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=TigerVNC server on display :1
+          After=syslog.target network.target
+
+          [Service]
+          Type=simple
+          User={{ vnc_user }}
+          PAMName=login
+          ExecStartPre=/bin/sh -c '/usr/bin/vncserver -kill :1 > /dev/null 2>&1 || true'
+          ExecStart=/usr/bin/vncserver :1 -geometry 1280x720 -depth 24 -localhost no
+          ExecStop=/usr/bin/vncserver -kill :1
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Recargar systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Habilitar y arrancar VNC en :1
+      ansible.builtin.systemd:
+        name: vncserver@1.service
+        enabled: true
+        state: started
+
+    # ---------------------------------------------------------------- 9/9 ----
     - name: Crear directorio de despliegue
       ansible.builtin.file:
-        path: /opt/portfolio
+        path: "{{ deploy_dir }}"
         state: directory
-        owner: ubuntu
-        group: ubuntu
+        owner: "{{ vnc_user }}"
+        group: "{{ vnc_user }}"
+        mode: "0755"
+
+    - name: Verificación final
+      ansible.builtin.assert:
+        that:
+          - docker_versions.results | length == 2
+          - ufw_status.stdout is search('Status: active')
+        fail_msg: "La configuración de la VM no terminó correctamente"
+        success_msg: "VM lista: Docker, UFW, iptables, VNC :5901 y {{ deploy_dir }}"
