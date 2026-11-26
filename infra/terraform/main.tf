@@ -9,12 +9,12 @@ data "oci_core_images" "ubuntu_2404" {
   sort_by                  = "TIMECREATED"
   sort_order               = "DESC"
 
-  # La shape VM.Standard.E2.1.Micro es x86_64; excluimos imágenes ARM/aarch64.
+  # La shape VM.Standard.E2.1.Micro es x86_64; las imágenes ARM llevan
+  # "-aarch64-" en el nombre, así que seleccionamos solo las x86_64.
   filter {
     name   = "display_name"
-    values = ["aarch64"]
+    values = ["^Canonical-Ubuntu-24\\.04-[0-9]"]
     regex  = true
-    negate = true
   }
 }
 
