@@ -8,6 +8,14 @@ data "oci_core_images" "ubuntu_2404" {
   operating_system_version = "24.04"
   sort_by                  = "TIMECREATED"
   sort_order               = "DESC"
+
+  # La shape VM.Standard.E2.1.Micro es x86_64; excluimos imágenes ARM/aarch64.
+  filter {
+    name   = "display_name"
+    values = ["aarch64"]
+    regex  = true
+    negate = true
+  }
 }
 
 resource "oci_core_vcn" "main" {
