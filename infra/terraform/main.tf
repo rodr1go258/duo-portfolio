@@ -9,11 +9,10 @@ data "oci_core_images" "ubuntu_2404" {
   sort_by                  = "TIMECREATED"
   sort_order               = "DESC"
 
-  # La shape VM.Standard.E2.1.Micro es x86_64; las imágenes ARM llevan
-  # "-aarch64-" en el nombre, así que seleccionamos solo las x86_64.
+  # VM.Standard.A1.Flex es ARM (aarch64); seleccionamos esa variante de imagen.
   filter {
     name   = "display_name"
-    values = ["^Canonical-Ubuntu-24\\.04-[0-9]"]
+    values = ["^Canonical-Ubuntu-24\\.04-aarch64-"]
     regex  = true
   }
 }
@@ -127,6 +126,11 @@ resource "oci_core_instance" "vm" {
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
   display_name        = "${var.project_name}-ubuntu-24.04"
   shape               = var.instance_shape
+
+  shape_config {
+    ocpus         = 1
+    memory_in_gbs = 6
+  }
 
   source_details {
     source_type = "image"

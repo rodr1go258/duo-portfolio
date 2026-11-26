@@ -98,6 +98,9 @@ jobs:
         id: meta
         run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
+      - name: Set up QEMU (imagen multi-arquitectura amd64 + arm64)
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -112,6 +115,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
@@ -130,7 +134,7 @@ jobs:
       TF_VAR_private_key: ${{ secrets.OCI_PRIVATE_KEY }}
       TF_VAR_region: ${{ secrets.OCI_REGION || 'us-ashburn-1' }}
       TF_VAR_compartment_id: ${{ secrets.OCI_COMPARTMENT_OCID || secrets.OCI_TENANCY_OCID }}
-      TF_VAR_instance_shape: ${{ secrets.OCI_SHAPE || 'VM.Standard.E2.1.Micro' }}
+      TF_VAR_instance_shape: ${{ secrets.OCI_SHAPE || 'VM.Standard.A1.Flex' }}
     outputs:
       public_ip: ${{ steps.tf_output.outputs.public_ip }}
     steps:

@@ -39,7 +39,7 @@ variable "project_name" {
 variable "instance_shape" {
   description = "Shape de la instancia OCI"
   type        = string
-  default     = "VM.Standard.E2.1.Micro"
+  default     = "VM.Standard.A1.Flex"
 }
 
 variable "vcn_cidr" {
