@@ -16,7 +16,8 @@ un guion de demo en vivo, preguntas típicas con respuesta y un apartado de segu
 | Ejecución `main` | `45818458555` → pasos 1-3 OK; paso 4 falla en `configure-aws-credentials` |
 | Docker Hub | https://hub.docker.com/r/rodr1go258/duo-portfolio (privado) |
 | Imagen | `rodr1go258/duo-portfolio:latest` y `:eb49b2c`, subidas y con digest |
-| VM AWS | No creada: no hay AWS Access Key/Secret en esta máquina ni sesión en AWS Console |
+| Terraform local | `terraform init` y `terraform validate` ejecutados con éxito en esta máquina |
+| VM AWS | No creada: AWS exige cuenta con método de pago y no hay credenciales AWS |
 
 Si te preguntan por la VM, la respuesta honesta es: **la infraestructura está definida y el pipeline la ejecuta; solo faltan las credenciales AWS en los secretos**. No digas que la VM está levantada.
 
@@ -195,7 +196,8 @@ Frase para cerrar:
    `terraform destroy` al terminar la demostración.
 4. **VNC.** Se instala porque el enunciado lo menciona, pero la interfaz principal es
    la web; VNC es una puerta de administración secundaria.
-5. **Comentario sobre el enunciado.** El texto dice "ubuntu 2404 vnc" sin punto ni
+5. **Cuenta AWS sin crear.** AWS requiere una tarjeta (retención temporal de USD $1) para abrir una cuenta; al no haberla, no se pudo aprovisionar la VM. No es un fallo del código: `terraform validate` pasa y el pipeline llega hasta `configure-aws-credentials`. Alternativas: credenciales de AWS Academy/Educate de la universidad, o una cuenta de un compañero/docente con su autorización.
+6. **Comentario sobre el enunciado.** El texto dice "ubuntu 2404 vnc" sin punto ni
    paréntesis de cierre; se interpretó como Ubuntu 24.04 con VNC en el puerto 5901.
 
 ---
