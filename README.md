@@ -118,12 +118,34 @@ La API sirve además el bundle de React, por lo que una sola imagen basta para t
 # Simula el pipeline completo en local (build + 39 tests + Docker + HTTP/HTTPS)
 powershell -File scripts/verify-all.ps1
 
-# Configura remoto, secretos y pushes (requiere GitHub CLI autenticado)
-gh auth login
-powershell -File scripts/bootstrap-github.ps1 -Repo TU_USUARIO/duo-portfolio `
-  -DockerHubUser TU_USER -DockerHubToken TU_TOKEN `
-  -AwsKey ... -AwsSecret ... -SshPublicKey 'ssh-ed25519 ...' `
-  -SshPrivateKeyPath C:\claves\id_ed25519 -Push
+# Recupera los tokens ya guardados en esta máquina (GitHub + Docker Hub)
+powershell -File scripts/extraer-credenciales-locales.ps1
+
+# Crea el repo, configura secretos y hace push de main y dev
+powershell -File scripts/bootstrap-github.ps1
+
+# Crea el repo en Docker Hub y publica la imagen
+powershell -File scripts/publicar-dockerhub.ps1
+```
+
+## Estado del despliegue externo
+
+| Recurso | Resultado |
+| --- | --- |
+| Repositorio GitHub | Creado: https://github.com/rodr1go258/duo-portfolio (privado) |
+| Secretos del repo | 9 configurados (Docker Hub, SSH, DB, VNC, región AWS) |
+| Ramas `main` y `dev` | Publicadas; el push a `dev` pasó con **39 tests** |
+| Repositorio Docker Hub | Creado: https://hub.docker.com/r/rodr1go258/duo-portfolio (privado) |
+| Imagen publicada | `rodr1go258/duo-portfolio:latest` y `:eb49b2c` |
+| VM en AWS | Pendiente: no hay credenciales AWS en esta máquina |
+
+Para terminar la VM, añade estos dos secretos y vuelve a hacer push a `main`:
+
+```powershell
+$env:GH_TOKEN = (Get-Content secrets\credenciales.txt | Where-Object { $_ -like 'GH_TOKEN=*' }).Substring(9)
+gh secret set AWS_ACCESS_KEY_ID --repo rodr1go258/duo-portfolio
+gh secret set AWS_SECRET_ACCESS_KEY --repo rodr1go258/duo-portfolio
+git commit --allow-empty -m 'trigger: aprovisionar VM AWS'; git push origin main
 ```
 
 ## Notas de seguridad

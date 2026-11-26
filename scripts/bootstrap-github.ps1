@@ -85,6 +85,14 @@ function Write-Step([string]$message) {
     Write-Host "`n=== $message ===" -ForegroundColor Cyan
 }
 
+# Los comandos nativos escriben en stderr incluso cuando salen bien; con
+# ErrorActionPreference=Stop PowerShell lo trataba como error terminating.
+function Invoke-Native([scriptblock]$Command) {
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { return & $Command 2>&1 } finally { $ErrorActionPreference = $previous }
+}
+
 Write-Step '0/5 Comprobando GitHub CLI'
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
     if ($InstallGh) {
@@ -94,7 +102,7 @@ if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
     throw 'Falta GitHub CLI. Instálalo con: winget install --id GitHub.cli  y luego: gh auth login'
 }
 
-$auth = gh auth status 2>&1
+$auth = Invoke-Native { gh auth status }
 if ($LASTEXITCODE -ne 0) {
     throw 'GitHub CLI no está autenticado. Ejecuta: gh auth login'
 }
@@ -109,14 +117,14 @@ $remoteUrl = "https://github.com/$slug.git"
 
 Write-Step "1/5 Repositorio remoto: $slug"
 if ($CreateRepo) {
-    $existing = gh repo view $slug 2>$null
+    $existing = Invoke-Native { gh repo view $slug }
     if ($LASTEXITCODE -ne 0) {
-        gh repo create $slug --private --confirm
+        Invoke-Native { gh repo create $slug --private --confirm } | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'No se pudo crear el repositorio' }
     }
 }
 
-$currentRemote = git remote get-url origin 2>$null
+$currentRemote = Invoke-Native { git remote get-url origin }
 if ($LASTEXITCODE -eq 0) {
     git remote set-url origin $remoteUrl
 } else {
@@ -152,7 +160,7 @@ if (-not $SkipSecrets) {
             Write-Host "  - $name : omitido (no proporcionado)" -ForegroundColor DarkGray
             continue
         }
-        $value | gh secret set $name --repo $slug
+        $null = Invoke-Native { $value | gh secret set $name --repo $slug }
         if ($LASTEXITCODE -ne 0) { throw "No se pudo configurar $name" }
         Write-Host "  + $name" -ForegroundColor Green
     }
@@ -161,15 +169,15 @@ if (-not $SkipSecrets) {
 }
 
 Write-Step '3/5 Estado local'
-$branch = git rev-parse --abbrev-ref HEAD
+$branch = (Invoke-Native { git rev-parse --abbrev-ref HEAD } | Select-Object -First 1)
 Write-Host "Rama actual: $branch"
 git status --short
 
 if ($Push) {
     Write-Step '4/5 Publicando ramas'
-    git push -u origin main
+    Invoke-Native { git push -u origin main } | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Falló el push a main' }
-    git push -u origin dev
+    Invoke-Native { git push -u origin dev } | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Falló el push a dev' }
     Write-Host 'Push completado: el pipeline se dispara automáticamente.' -ForegroundColor Green
 } else {
