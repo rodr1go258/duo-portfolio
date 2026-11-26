@@ -133,14 +133,15 @@ powershell -File scripts/publicar-dockerhub.ps1
 | Recurso | Resultado |
 | --- | --- |
 | Repositorio GitHub | Creado y público: https://github.com/rodr1go258/duo-portfolio |
-| Secretos del repo | 9 configurados (Docker Hub, SSH, DB, VNC, región AWS) |
+| Secretos del repo | 11 configurados (Docker Hub, SSH, DB, VNC, región AWS y claves IAM) |
 | Ramas `main` y `dev` | Publicadas; el push a `dev` pasó con **39 tests** |
 | Repositorio Docker Hub | Creado (privado): https://hub.docker.com/r/rodr1go258/duo-portfolio — iniciar sesión como `rodr1go258` con el token de `secrets/credenciales.txt` |
 | Imagen publicada | `rodr1go258/duo-portfolio:latest` y `:eb49b2c` |
-| VM en AWS | Pendiente: no hay credenciales AWS en esta máquina |
+| Cuenta AWS | `duo-portfolio (743893782771)`; usuario IAM `duo-portfolio-ci` con `AmazonEC2FullAccess` + `AmazonVPCFullAccess` |
+| Último `run` de `main` | https://github.com/rodr1go258/duo-portfolio/actions/runs/45826186316 — credenciales OK, `terraform init` y `validate` OK, `terraform plan` falla por `OptInRequired` |
+| VM en AWS | No creada: AWS exige verificar un método de pago para suscribir EC2; la cuenta está en plan free sin tarjeta |
 
-Para terminar la VM, pon `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` y `AWS_REGION`
-en `secrets/credenciales.txt` y ejecuta:
+Para reintentar cuando la cuenta esté activada, ejecuta:
 
 ```powershell
 powershell -File scripts/crear-vm-aws.ps1

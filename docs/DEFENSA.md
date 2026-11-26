@@ -13,13 +13,15 @@ un guion de demo en vivo, preguntas típicas con respuesta y un apartado de segu
 | Repositorio GitHub | https://github.com/rodr1go258/duo-portfolio (público) |
 | Pipeline | https://github.com/rodr1go258/duo-portfolio/actions |
 | Ejecución `dev` | `45818458890` → **success**, 39 tests en GitHub Actions |
-| Ejecución `main` | `45818458555` → pasos 1-3 OK; paso 4 falla en `configure-aws-credentials` |
+| Ejecución `main` (credenciales) | `45823653960` → pasos 1-3 OK; fallo en `configure-aws-credentials` (secretos aún no registrados) |
+| Ejecución `main` (final) | `45826186316` → credenciales AWS OK, `terraform init` y `validate` OK; `terraform plan` falla con `OptInRequired` |
+| Cuenta AWS | Creada: `duo-portfolio (743893782771)`, usuario IAM `duo-portfolio-ci` con EC2/VPC FullAccess |
 | Docker Hub | https://hub.docker.com/r/rodr1go258/duo-portfolio (privado) |
 | Imagen | `rodr1go258/duo-portfolio:latest` y `:eb49b2c`, subidas y con digest |
-| Terraform local | `terraform init` y `terraform validate` ejecutados con éxito en esta máquina |
-| VM AWS | No creada: AWS exige cuenta con método de pago y no hay credenciales AWS |
+| Terraform local | `terraform init` y `terraform validate` ejecutados con éxito en esta máquina y en GitHub Actions |
+| VM AWS | No creada: la cuenta está en plan free sin método de pago verificado, por lo que EC2 responde `OptInRequired: You are not subscribed to this service` |
 
-Si te preguntan por la VM, la respuesta honesta es: **la infraestructura está definida y el pipeline la ejecuta; solo faltan las credenciales AWS en los secretos**. No digas que la VM está levantada.
+Si te preguntan por la VM, la respuesta honesta es: **la cuenta y las credenciales funcionan (STS responde con el usuario IAM), el pipeline pasa la autenticación y valida Terraform; el bloqueo es la activación comercial de EC2, que AWS no habilita sin verificar una tarjeta**. No digas que la VM está levantada.
 
 ---
 
@@ -196,7 +198,7 @@ Frase para cerrar:
    `terraform destroy` al terminar la demostración.
 4. **VNC.** Se instala porque el enunciado lo menciona, pero la interfaz principal es
    la web; VNC es una puerta de administración secundaria.
-5. **Cuenta AWS sin crear.** AWS requiere una tarjeta (retención temporal de USD $1) para abrir una cuenta; al no haberla, no se pudo aprovisionar la VM. No es un fallo del código: `terraform validate` pasa y el pipeline llega hasta `configure-aws-credentials`. Alternativas: credenciales de AWS Academy/Educate de la universidad, o una cuenta de un compañero/docente con su autorización.
+5. **Cuenta AWS creada pero EC2 no suscrito.** Se creó `duo-portfolio (743893782771)`, se generó el usuario IAM `duo-portfolio-ci` y se registraron sus claves en GitHub Secrets; `sts:GetCallerIdentity` responde correctamente. Sin embargo AWS mantiene la cuenta en plan free sin método de pago verificado y las llamadas a EC2 devuelven `OptInRequired: You are not subscribed to this service`. El pipeline llega hasta `terraform plan` y falla al leer AMIs y zonas de disponibilidad. No es un fallo del código: `terraform init` y `terraform validate` pasan tanto en local como en el runner. Alternativas: verificar una tarjeta, usar credenciales de AWS Academy/Educate, o una cuenta de un compañero/docente con su autorización.
 6. **Comentario sobre el enunciado.** El texto dice "ubuntu 2404 vnc" sin punto ni
    paréntesis de cierre; se interpretó como Ubuntu 24.04 con VNC en el puerto 5901.
 
