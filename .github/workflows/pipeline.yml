@@ -193,6 +193,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: scripts/setup_vm.sh
           target: /tmp
+          strip_components: 1
 
       - name: Ejecutar configuración
         uses: appleboy/ssh-action@v1.0.3

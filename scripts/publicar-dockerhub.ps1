@@ -37,9 +37,9 @@ if ($LASTEXITCODE -ne 0) { throw 'docker login falló' }
 
 Write-Step "2/4 Asegurando el repositorio $fullName"
 # La API de Hub no acepta el PAT como bearer: primero se cambia por un JWT.
-$authBody = @{ identifier = $user; secret = $token } | ConvertTo-Json
-$authResp = Invoke-RestMethod -Uri 'https://hub.docker.com/v2/auth/token' -Method Post -Body $authBody -ContentType 'application/json' -TimeoutSec 60
-$jwt = $authResp.access_token
+$authBody = @{ username = $user; password = $token } | ConvertTo-Json
+$authResp = Invoke-RestMethod -Uri 'https://hub.docker.com/v2/users/login/' -Method Post -Body $authBody -ContentType 'application/json' -TimeoutSec 60
+$jwt = $authResp.token
 if (-not $jwt) { throw 'No se pudo obtener el token de la API de Docker Hub' }
 $headers = @{ Authorization = "Bearer $jwt" }
 $apiBase = "https://hub.docker.com/v2/namespaces/$user/repositories"
@@ -55,7 +55,7 @@ if (-not $exists) {
         name        = $ImageName
         namespace   = $user
         registry    = 'docker.io'
-        is_private  = $true
+        is_private  = $false
         description = 'MVP duo-portfolio: React + Express + PostgreSQL, CI/CD con GitHub Actions'
     } | ConvertTo-Json
     $null = Invoke-RestMethod -Uri "$apiBase" -Headers $headers -Method Post -Body $body -ContentType 'application/json' -TimeoutSec 60
@@ -74,6 +74,9 @@ docker push "${fullName}:latest"
 if ($LASTEXITCODE -ne 0) { throw 'docker push latest falló' }
 docker push "${fullName}:${sha}"
 if ($LASTEXITCODE -ne 0) { throw "docker push $sha falló" }
+
+$repo = Invoke-RestMethod -Uri $apiRepo -Headers $headers -Method Get -TimeoutSec 30
+Write-Host "Visibilidad: $(if ($repo.is_private) { 'privada' } else { 'pública' })" -ForegroundColor Cyan
 
 Write-Host @"
 

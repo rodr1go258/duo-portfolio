@@ -2,7 +2,7 @@
 .SYNOPSIS
     Abre la demostración completa: VS Code, Docker Desktop, stack local y evidencias en el navegador.
 .DESCRIPTION
-    Prepara el entorno para la defensa sin depender de AWS: levanta los contenedores,
+    Prepara el entorno para la defensa: levanta los contenedores,
     abre los archivos clave en VS Code y las URLs de evidencia en el navegador.
 #>
 [CmdletBinding()]
@@ -61,7 +61,7 @@ Write-Step '4/4 Navegador'
 $urls = @(
     'https://github.com/rodr1go258/duo-portfolio',
     'https://github.com/rodr1go258/duo-portfolio/actions',
-    'https://github.com/rodr1go258/duo-portfolio/actions/runs/45826186316',
+    'https://github.com/rodr1go258/duo-portfolio/actions/runs/45841591994',
     'https://hub.docker.com/r/rodr1go258/duo-portfolio',
     'http://127.0.0.1:8081/api/health',
     'https://github.com/rodr1go258/duo-portfolio/blob/main/docs/DEFENSA.md'
@@ -74,8 +74,9 @@ Write-Host @"
 Listo para defender:
   - Repo y pipeline: https://github.com/rodr1go258/duo-portfolio
   - dev: 39 tests en verde
-  - main: Docker Hub OK; Terraform init/validate OK; plan detenido por OptInRequired (EC2 sin suscribir, cuenta sin tarjeta)
+  - main: Docker Hub público; Terraform + VM Ubuntu 24.04 en Oracle Cloud (compartimento nuevo duo-portfolio)
+  - Run final: https://github.com/rodr1go258/duo-portfolio/actions/runs/45841591994
   - Local: HTTP 8081 y HTTPS 8443 respondiendo
 
-No digas que la VM de AWS existe: el bloqueo es externo y está documentado en docs/DEFENSA.md.
+La infraestructura se creó en el compartimento nuevo duo-portfolio sin usar recursos existentes del tenancy.
 "@ -ForegroundColor Yellow

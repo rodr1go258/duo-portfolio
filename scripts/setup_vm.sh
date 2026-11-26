@@ -13,7 +13,7 @@ echo "==> [1/8] Actualizando sistema"
 apt-get update -y
 apt-get upgrade -y
 
-# La shape VM.Standard.E2.1.Micro tiene 1 GB de RAM; 2 GB de swap evita OOM al construir.
+# 2 GB de swap evitan picos de memoria durante la instalación de paquetes.
 if [ ! -f /swapfile ]; then
   fallocate -l 2G /swapfile
   chmod 600 /swapfile
