@@ -139,14 +139,14 @@ powershell -File scripts/publicar-dockerhub.ps1
 | Imagen publicada | `rodr1go258/duo-portfolio:latest` y `:eb49b2c` |
 | VM en AWS | Pendiente: no hay credenciales AWS en esta máquina |
 
-Para terminar la VM, añade estos dos secretos y vuelve a hacer push a `main`:
+Para terminar la VM, pon `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` y `AWS_REGION`
+en `secrets/credenciales.txt` y ejecuta:
 
 ```powershell
-$env:GH_TOKEN = (Get-Content secrets\credenciales.txt | Where-Object { $_ -like 'GH_TOKEN=*' }).Substring(9)
-gh secret set AWS_ACCESS_KEY_ID --repo rodr1go258/duo-portfolio
-gh secret set AWS_SECRET_ACCESS_KEY --repo rodr1go258/duo-portfolio
-git commit --allow-empty -m 'trigger: aprovisionar VM AWS'; git push origin main
+powershell -File scripts/crear-vm-aws.ps1
 ```
+
+Ese script registra los secretos, dispara el push a `main` y deja el `run` de GitHub Actions.
 
 ## Notas de seguridad
 
