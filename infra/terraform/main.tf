@@ -1,146 +1,140 @@
-data "aws_ami" "ubuntu_2404" {
-  most_recent = true
-  owners      = ["099720109477"] # Canonical
+data "oci_identity_availability_domains" "ads" {
+  compartment_id = var.compartment_id
+}
 
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]
+data "oci_core_images" "ubuntu_2404" {
+  compartment_id           = var.compartment_id
+  operating_system         = "Canonical Ubuntu"
+  operating_system_version = "24.04"
+  sort_by                  = "TIMECREATED"
+  sort_order               = "DESC"
+}
+
+resource "oci_core_vcn" "main" {
+  compartment_id = var.compartment_id
+  cidr_blocks    = [var.vcn_cidr]
+  display_name   = "${var.project_name}-vcn"
+  dns_label      = "duoportfolio"
+}
+
+resource "oci_core_internet_gateway" "main" {
+  compartment_id = var.compartment_id
+  vcn_id         = oci_core_vcn.main.id
+  display_name   = "${var.project_name}-igw"
+  enabled        = true
+}
+
+resource "oci_core_route_table" "public" {
+  compartment_id = var.compartment_id
+  vcn_id         = oci_core_vcn.main.id
+  display_name   = "${var.project_name}-public-rt"
+
+  route_rules {
+    network_entity_id = oci_core_internet_gateway.main.id
+    destination       = "0.0.0.0/0"
+    destination_type  = "CIDR_BLOCK"
   }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
 }
 
-data "aws_availability_zones" "available" {
-  state = "available"
-}
+resource "oci_core_security_list" "vm" {
+  compartment_id = var.compartment_id
+  vcn_id         = oci_core_vcn.main.id
+  display_name   = "${var.project_name}-vm-sl"
 
-resource "aws_vpc" "main" {
-  cidr_block           = var.vpc_cidr
-  enable_dns_support   = true
-  enable_dns_hostnames = true
-
-  tags = { Name = "${var.project_name}-vpc" }
-}
-
-resource "aws_internet_gateway" "main" {
-  vpc_id = aws_vpc.main.id
-
-  tags = { Name = "${var.project_name}-igw" }
-}
-
-resource "aws_subnet" "public" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.public_subnet_cidr
-  availability_zone       = data.aws_availability_zones.available.names[0]
-  map_public_ip_on_launch = true
-
-  tags = { Name = "${var.project_name}-public-subnet" }
-}
-
-resource "aws_subnet" "private" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = var.private_subnet_cidr
-  availability_zone = data.aws_availability_zones.available.names[1]
-
-  tags = { Name = "${var.project_name}-private-subnet" }
-}
-
-resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.main.id
-  }
-
-  tags = { Name = "${var.project_name}-public-rt" }
-}
-
-resource "aws_route_table_association" "public" {
-  subnet_id      = aws_subnet.public.id
-  route_table_id = aws_route_table.public.id
-}
-
-resource "aws_security_group" "vm" {
-  name        = "${var.project_name}-vm-sg"
-  description = "HTTP/HTTPS públicos, SSH/VNC restringidos"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
+  # TCP es protocolo 6 en OCI
+  ingress_security_rules {
+    protocol    = "6"
+    source      = "0.0.0.0/0"
+    stateless   = false
     description = "HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    tcp_options {
+      min = 80
+      max = 80
+    }
   }
 
-  ingress {
+  ingress_security_rules {
+    protocol    = "6"
+    source      = "0.0.0.0/0"
+    stateless   = false
     description = "HTTPS"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    tcp_options {
+      min = 443
+      max = 443
+    }
   }
 
-  ingress {
+  ingress_security_rules {
+    protocol    = "6"
+    source      = var.ssh_cidr
+    stateless   = false
     description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.ssh_cidr]
+    tcp_options {
+      min = 22
+      max = 22
+    }
   }
 
-  ingress {
+  ingress_security_rules {
+    protocol    = "6"
+    source      = var.ssh_cidr
+    stateless   = false
     description = "VNC"
-    from_port   = 5901
-    to_port     = 5901
-    protocol    = "tcp"
-    cidr_blocks = [var.ssh_cidr]
+    tcp_options {
+      min = 5901
+      max = 5901
+    }
   }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+  egress_security_rules {
+    protocol    = "all"
+    destination = "0.0.0.0/0"
+    stateless   = false
+    description = "Salida a Internet"
+  }
+}
+
+resource "oci_core_subnet" "public" {
+  compartment_id             = var.compartment_id
+  vcn_id                     = oci_core_vcn.main.id
+  cidr_block                 = var.public_subnet_cidr
+  display_name               = "${var.project_name}-public-subnet"
+  dns_label                  = "public"
+  route_table_id             = oci_core_route_table.public.id
+  security_list_ids          = [oci_core_security_list.vm.id]
+  prohibit_public_ip_on_vnic = false
+}
+
+resource "oci_core_subnet" "private" {
+  compartment_id             = var.compartment_id
+  vcn_id                     = oci_core_vcn.main.id
+  cidr_block                 = var.private_subnet_cidr
+  display_name               = "${var.project_name}-private-subnet"
+  dns_label                  = "private"
+  prohibit_public_ip_on_vnic = true
+}
+
+resource "oci_core_instance" "vm" {
+  compartment_id      = var.compartment_id
+  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  display_name        = "${var.project_name}-ubuntu-24.04"
+  shape               = var.instance_shape
+
+  source_details {
+    source_type = "image"
+    source_id   = data.oci_core_images.ubuntu_2404.images[0].id
   }
 
-  tags = { Name = "${var.project_name}-vm-sg" }
-}
-
-resource "aws_key_pair" "deploy" {
-  key_name   = "${var.project_name}-key"
-  public_key = var.ssh_public_key
-}
-
-resource "aws_instance" "vm" {
-  ami                    = data.aws_ami.ubuntu_2404.id
-  instance_type          = var.instance_type
-  subnet_id              = aws_subnet.public.id
-  vpc_security_group_ids = [aws_security_group.vm.id]
-  key_name               = aws_key_pair.deploy.key_name
-
-  user_data = <<-EOT
-    #!/bin/bash
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get update -y
-    apt-get install -y git ca-certificates curl
-  EOT
-
-  root_block_device {
-    volume_size = 20
-    volume_type = "gp3"
+  create_vnic_details {
+    subnet_id        = oci_core_subnet.public.id
+    assign_public_ip = true
+    hostname_label   = "duoportfolio"
+    display_name     = "${var.project_name}-vnic"
   }
 
-  tags = { Name = "${var.project_name}-ubuntu-24.04" }
-}
+  metadata = {
+    ssh_authorized_keys = var.ssh_public_key
+  }
 
-resource "aws_eip" "vm" {
-  domain   = "vpc"
-  instance = aws_instance.vm.id
-
-  tags = { Name = "${var.project_name}-public-ip" }
+  preserve_boot_volume = false
 }

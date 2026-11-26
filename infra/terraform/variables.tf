@@ -1,7 +1,33 @@
-variable "aws_region" {
-  description = "Región de AWS donde se crea la infraestructura"
+variable "tenancy_ocid" {
+  description = "OCID del tenancy de Oracle Cloud"
   type        = string
-  default     = "us-east-1"
+}
+
+variable "user_ocid" {
+  description = "OCID del usuario API de Oracle Cloud"
+  type        = string
+}
+
+variable "fingerprint" {
+  description = "Huella de la clave API"
+  type        = string
+}
+
+variable "private_key" {
+  description = "Contenido PEM de la clave API (sensitive)"
+  type        = string
+  sensitive   = true
+}
+
+variable "region" {
+  description = "Región de OCI, por ejemplo us-ashburn-1"
+  type        = string
+  default     = "us-ashburn-1"
+}
+
+variable "compartment_id" {
+  description = "OCID del compartment donde se crean los recursos"
+  type        = string
 }
 
 variable "project_name" {
@@ -10,14 +36,14 @@ variable "project_name" {
   default     = "duo-portfolio"
 }
 
-variable "instance_type" {
-  description = "Tipo de instancia EC2"
+variable "instance_shape" {
+  description = "Shape de la instancia OCI"
   type        = string
-  default     = "t3.small"
+  default     = "VM.Standard.E2.1.Micro"
 }
 
-variable "vpc_cidr" {
-  description = "CIDR de la VPC"
+variable "vcn_cidr" {
+  description = "CIDR de la VCN"
   type        = string
   default     = "10.20.0.0/16"
 }

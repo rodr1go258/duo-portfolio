@@ -1,22 +1,18 @@
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = ">= 1.3.0"
 
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
+    oci = {
+      source  = "oracle/oci"
       version = "~> 5.0"
     }
   }
 }
 
-provider "aws" {
-  region = var.aws_region
-
-  default_tags {
-    tags = {
-      Project     = var.project_name
-      ManagedBy   = "terraform"
-      Environment = "production"
-    }
-  }
+provider "oci" {
+  tenancy_ocid = var.tenancy_ocid
+  user_ocid    = var.user_ocid
+  fingerprint  = var.fingerprint
+  private_key  = var.private_key
+  region       = var.region
 }

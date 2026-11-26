@@ -9,15 +9,24 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 VNC_PASSWORD="${VNC_PASSWORD:-duoportfolio}"
 
-echo "==> [1/7] Actualizando sistema"
+echo "==> [1/8] Actualizando sistema"
 apt-get update -y
 apt-get upgrade -y
 
-echo "==> [2/7] Instalando paquetes base"
+# La shape VM.Standard.E2.1.Micro tiene 1 GB de RAM; 2 GB de swap evita OOM al construir.
+if [ ! -f /swapfile ]; then
+  fallocate -l 2G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile >/dev/null
+  swapon /swapfile
+  grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
+echo "==> [2/8] Instalando paquetes base"
 apt-get install -y --no-install-recommends \
   ca-certificates curl git gnupg ufw iptables openssl net-tools >/dev/null
 
-echo "==> [3/7] Instalando Docker CE + Compose + Buildx"
+echo "==> [3/8] Instalando Docker CE + Compose + Buildx"
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
   | gpg --dearmor -o /etc/apt/keyrings/docker.gpg >/dev/null 2>&1
@@ -33,7 +42,7 @@ usermod -aG docker ubuntu || true
 docker --version
 docker compose version
 
-echo "==> [4/7] Configurando firewall (ufw)"
+echo "==> [4/8] Configurando firewall (ufw)"
 ufw --force reset >/dev/null
 ufw default deny incoming >/dev/null
 ufw default allow outgoing >/dev/null
@@ -44,7 +53,7 @@ ufw allow 5901/tcp comment 'VNC' >/dev/null
 ufw --force enable >/dev/null
 ufw status verbose
 
-echo "==> [5/7] Reglas explícitas de iptables para 80 y 443"
+echo "==> [5/8] Reglas explícitas de iptables para 80 y 443"
 for PORT in 80 443; do
   if ! iptables -C INPUT -p tcp --dport "${PORT}" -j ACCEPT 2>/dev/null; then
     iptables -I INPUT -p tcp --dport "${PORT}" -j ACCEPT
@@ -52,7 +61,7 @@ for PORT in 80 443; do
 done
 iptables -S INPUT | head -n 20
 
-echo "==> [6/7] Instalando escritorio ligero + VNC (puerto 5901)"
+echo "==> [6/8] Instalando escritorio ligero + VNC (puerto 5901)"
 apt-get install -y --no-install-recommends xfce4 xfce4-goodies \
   tigervnc-standalone-server tigervnc-common >/dev/null
 mkdir -p /home/ubuntu/.vnc
@@ -87,7 +96,7 @@ EOT
 systemctl daemon-reload
 systemctl enable --now vncserver@1.service
 
-echo "==> [7/7] Preparando directorio de despliegue"
+echo "==> [7/8] Preparando directorio de despliegue"
 mkdir -p /opt/portfolio
 chown ubuntu:ubuntu /opt/portfolio
 

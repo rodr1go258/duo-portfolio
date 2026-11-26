@@ -1,34 +1,34 @@
 output "instance_id" {
-  description = "ID de la instancia EC2"
-  value       = aws_instance.vm.id
+  description = "OCID de la instancia OCI"
+  value       = oci_core_instance.vm.id
 }
 
 output "public_ip" {
-  description = "IP pública elástica asignada a la VM"
-  value       = aws_eip.vm.public_ip
+  description = "IP pública asignada a la VM"
+  value       = oci_core_instance.vm.public_ip
 }
 
-output "vpc_id" {
-  description = "ID de la VPC creada"
-  value       = aws_vpc.main.id
+output "vcn_id" {
+  description = "OCID de la VCN creada"
+  value       = oci_core_vcn.main.id
 }
 
 output "public_subnet_id" {
-  description = "ID de la subred pública"
-  value       = aws_subnet.public.id
+  description = "OCID de la subred pública"
+  value       = oci_core_subnet.public.id
 }
 
 output "private_subnet_id" {
-  description = "ID de la subred privada"
-  value       = aws_subnet.private.id
+  description = "OCID de la subred privada"
+  value       = oci_core_subnet.private.id
 }
 
-output "ami_id" {
-  description = "AMI de Ubuntu 24.04 utilizada"
-  value       = data.aws_ami.ubuntu_2404.id
+output "image_id" {
+  description = "OCID de la imagen Ubuntu 24.04 utilizada"
+  value       = data.oci_core_images.ubuntu_2404.images[0].id
 }
 
 output "ssh_command" {
   description = "Comando listo para conectarse por SSH"
-  value       = "ssh ubuntu@${aws_eip.vm.public_ip}"
+  value       = "ssh ubuntu@${oci_core_instance.vm.public_ip}"
 }
