@@ -9,10 +9,10 @@ data "oci_core_images" "ubuntu_2404" {
   sort_by                  = "TIMECREATED"
   sort_order               = "DESC"
 
-  # VM.Standard.A1.Flex es ARM (aarch64); seleccionamos esa variante de imagen.
+  # VM.Standard.E3.Flex es x86_64; seleccionamos esa variante de imagen.
   filter {
     name   = "display_name"
-    values = ["^Canonical-Ubuntu-24\\.04-aarch64-"]
+    values = ["^Canonical-Ubuntu-24\\.04-[0-9]"]
     regex  = true
   }
 }
@@ -129,7 +129,7 @@ resource "oci_core_instance" "vm" {
 
   shape_config {
     ocpus         = 1
-    memory_in_gbs = 6
+    memory_in_gbs = 4
   }
 
   source_details {

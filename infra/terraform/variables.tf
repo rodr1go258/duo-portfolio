@@ -20,9 +20,9 @@ variable "private_key" {
 }
 
 variable "region" {
-  description = "Región de OCI, por ejemplo us-ashburn-1"
+  description = "Región de OCI suscrita (sa-saopaulo-1)"
   type        = string
-  default     = "us-ashburn-1"
+  default     = "sa-saopaulo-1"
 }
 
 variable "compartment_id" {
@@ -39,7 +39,7 @@ variable "project_name" {
 variable "instance_shape" {
   description = "Shape de la instancia OCI"
   type        = string
-  default     = "VM.Standard.A1.Flex"
+  default     = "VM.Standard.E3.Flex"
 }
 
 variable "vcn_cidr" {

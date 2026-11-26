@@ -12,6 +12,8 @@ infra/terraform/*.tfstate.*
 infra/terraform/.terraform/
 infra/terraform/.terraform.lock.hcl
 infra/terraform/terraform.tfvars
+infra/terraform/tfplan
+infra/terraform/*.tfplan
 secrets/
 backup/
 .DS_Store

@@ -27,9 +27,9 @@ $missing = $required | Where-Object { -not $cfg[$_] }
 if ($missing) { throw "Faltan en secrets/credenciales.txt: $($missing -join ', ')" }
 
 $repo = if ($cfg['REPO']) { $cfg['REPO'] } else { 'rodr1go258/duo-portfolio' }
-$region = if ($cfg['OCI_REGION']) { $cfg['OCI_REGION'] } else { 'us-ashburn-1' }
+$region = if ($cfg['OCI_REGION']) { $cfg['OCI_REGION'] } else { 'sa-saopaulo-1' }
 $compartment = if ($cfg['OCI_COMPARTMENT_OCID']) { $cfg['OCI_COMPARTMENT_OCID'] } else { $cfg['OCI_TENANCY_OCID'] }
-$shape = if ($cfg['OCI_SHAPE']) { $cfg['OCI_SHAPE'] } else { 'VM.Standard.E2.1.Micro' }
+$shape = if ($cfg['OCI_SHAPE']) { $cfg['OCI_SHAPE'] } else { 'VM.Standard.E3.Flex' }
 
 function Write-Step([string]$message) { Write-Host "`n=== $message ===" -ForegroundColor Cyan }
 function Invoke-Native([scriptblock]$Command) {
