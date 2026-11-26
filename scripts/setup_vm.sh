@@ -45,7 +45,8 @@ wait_for_apt
 
 echo "==> [1/8] Actualizando sistema"
 apt_do update -y
-apt_do upgrade -y
+# No ejecutamos "apt upgrade": no es requisito y en VM recién creada
+# alarga el arranque y aumenta la probabilidad de encontrar locks de apt.
 
 # 2 GB de swap evitan picos de memoria durante la instalación de paquetes.
 if [ ! -f /swapfile ]; then
