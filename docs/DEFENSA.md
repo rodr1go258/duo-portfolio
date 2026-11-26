@@ -6,6 +6,22 @@ un guion de demo en vivo, preguntas típicas con respuesta y un apartado de segu
 
 ---
 
+## 0. Estado real de la entrega (para no inventar nada)
+
+| Elemento | Estado verificable |
+| --- | --- |
+| Repositorio GitHub | https://github.com/rodr1go258/duo-portfolio (público) |
+| Pipeline | https://github.com/rodr1go258/duo-portfolio/actions |
+| Ejecución `dev` | `45818458890` → **success**, 39 tests en GitHub Actions |
+| Ejecución `main` | `45818458555` → pasos 1-3 OK; paso 4 falla en `configure-aws-credentials` |
+| Docker Hub | https://hub.docker.com/r/rodr1go258/duo-portfolio (privado) |
+| Imagen | `rodr1go258/duo-portfolio:latest` y `:eb49b2c`, subidas y con digest |
+| VM AWS | No creada: no hay AWS Access Key/Secret en esta máquina ni sesión en AWS Console |
+
+Si te preguntan por la VM, la respuesta honesta es: **la infraestructura está definida y el pipeline la ejecuta; solo faltan las credenciales AWS en los secretos**. No digas que la VM está levantada.
+
+---
+
 ## 1. Discurso de 60 segundos
 
 > "Construí un MVP de portafolio para un equipo de dos personas: Ana se encarga de

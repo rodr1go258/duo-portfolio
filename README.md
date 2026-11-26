@@ -132,10 +132,10 @@ powershell -File scripts/publicar-dockerhub.ps1
 
 | Recurso | Resultado |
 | --- | --- |
-| Repositorio GitHub | Creado: https://github.com/rodr1go258/duo-portfolio (privado) |
+| Repositorio GitHub | Creado y público: https://github.com/rodr1go258/duo-portfolio |
 | Secretos del repo | 9 configurados (Docker Hub, SSH, DB, VNC, región AWS) |
 | Ramas `main` y `dev` | Publicadas; el push a `dev` pasó con **39 tests** |
-| Repositorio Docker Hub | Creado: https://hub.docker.com/r/rodr1go258/duo-portfolio (privado) |
+| Repositorio Docker Hub | Creado (privado): https://hub.docker.com/r/rodr1go258/duo-portfolio — iniciar sesión como `rodr1go258` con el token de `secrets/credenciales.txt` |
 | Imagen publicada | `rodr1go258/duo-portfolio:latest` y `:eb49b2c` |
 | VM en AWS | Pendiente: no hay credenciales AWS en esta máquina |
 
