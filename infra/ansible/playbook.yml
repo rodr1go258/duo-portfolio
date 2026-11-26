@@ -191,6 +191,7 @@
           - xfce4-goodies
           - tigervnc-standalone-server
           - tigervnc-common
+          - tigervnc-tools
         state: present
         no_install_recommends: true
 

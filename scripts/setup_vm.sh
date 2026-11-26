@@ -89,7 +89,7 @@ iptables -S INPUT | head -n 20
 
 echo "==> [6/8] Instalando escritorio ligero + VNC (puerto 5901)"
 apt-get install -y --no-install-recommends xfce4 xfce4-goodies \
-  tigervnc-standalone-server tigervnc-common >/dev/null
+  tigervnc-standalone-server tigervnc-common tigervnc-tools >/dev/null
 mkdir -p /home/ubuntu/.vnc
 echo "${VNC_PASSWORD}" | vncpasswd -f > /home/ubuntu/.vnc/passwd
 chmod 600 /home/ubuntu/.vnc/passwd
